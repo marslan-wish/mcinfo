@@ -1,0 +1,14 @@
+[package]
+name = "mcinfo"
+description = "A quick way to look at Memcached usage"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+structopt = "0.3.26"
+
+[profile.dev]
+opt-level = 0
+
+[profile.release]
+opt-level = 3

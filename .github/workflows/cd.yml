@@ -1,0 +1,61 @@
+name: Continuous Deployment
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  publish:
+    name: publishing for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+        rust: [stable]
+        include:
+          - os: macos-latest
+            artifact_prefix: macos-x86_64
+            target: x86_64-apple-darwin
+          - os: ubuntu-latest
+            artifact_prefix: linux-x86_64
+            target: x86_64-unknown-linux-gnu
+
+    steps:
+      - name: installing rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust }}
+          override: true
+      - name: checking out sources
+        uses: actions/checkout@v1
+      - name: running cargo build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          toolchain: ${{ matrix.rust }}
+          args: --release --target ${{ matrix.target }}
+
+      - name: packaging binary
+        shell: bash
+        run: |
+          cd target/${{ matrix.target }}/release
+
+          BINARY_NAME=mcinfo
+          strip $BINARY_NAME
+
+          RELEASE_NAME=mcinfo-${{ matrix.artifact_prefix }}
+          tar czvf $RELEASE_NAME.tar.gz $BINARY_NAME
+
+          shasum -a 256 $RELEASE_NAME.tar.gz > $RELEASE_NAME.sha256
+      - name: releasing assets
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            target/${{ matrix.target }}/release/mcinfo-${{ matrix.artifact_prefix }}.tar.gz
+            target/${{ matrix.target }}/release/mcinfo-${{ matrix.artifact_prefix }}.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
